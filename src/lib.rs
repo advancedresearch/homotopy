@@ -72,6 +72,13 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
     {
         Back(self)
     }
+
+    /// Gets a converter to and from vectors.
+    fn as_vec<'a, S, VX>(&'a self) -> AsVec<&'a Self>
+        where AsVec<&'a Self>: Homotopy<VX, S>
+    {
+        AsVec(self)
+    }
 }
 
 impl<'a, X, T, S> Homotopy<X, S> for &'a T
@@ -399,6 +406,48 @@ impl<X, T> Homotopy<X> for Inverse<T>
     fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, 1.0 - s)}
 }
 
+/// Converts to and from vectors.
+#[derive(Copy, Clone)]
+pub struct AsVec<T>(pub T);
+
+impl<X, Y, S, T> Homotopy<[X; 2], S> for AsVec<T>
+    where T: Homotopy<(X, X), S, Y = (Y, Y)>, X: Copy
+{
+    type Y = [Y; 2];
+
+    fn f(&self, x: [X; 2]) -> Self::Y {
+        let (a, b) = self.0.f((x[0], x[1]));
+        [a, b]
+    }
+    fn g(&self, x: [X; 2]) -> Self::Y {
+        let (a, b) = self.0.g((x[0], x[1]));
+        [a, b]
+    }
+    fn h(&self, x: [X; 2], s: S) -> Self::Y {
+        let (a, b) = self.0.h((x[0], x[1]), s);
+        [a, b]
+    }
+}
+
+impl<X, Y, S, T> Homotopy<[X; 3], S> for AsVec<T>
+    where T: Homotopy<(X, X, X), S, Y = (Y, Y, Y)>, X: Copy
+{
+    type Y = [Y; 3];
+
+    fn f(&self, x: [X; 3]) -> Self::Y {
+        let (a, b, c) = self.0.f((x[0], x[1], x[2]));
+        [a, b, c]
+    }
+    fn g(&self, x: [X; 3]) -> Self::Y {
+        let (a, b, c) = self.0.g((x[0], x[1], x[2]));
+        [a, b, c]
+    }
+    fn h(&self, x: [X; 3], s: S) -> Self::Y {
+        let (a, b, c) = self.0.h((x[0], x[1], x[2]), s);
+        [a, b, c]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -490,6 +539,7 @@ mod tests {
         let unit = ((), ());
         assert!(check2(&c, unit));
         assert!(check(&c.diagonal(), unit));
+        assert!(check2(&c.as_vec(), [(); 2]));
     }
 
     #[test]
@@ -501,6 +551,7 @@ mod tests {
         let unit = ((), (), ());
         assert!(check3(&c, unit));
         assert!(check(&c.diagonal(), unit));
+        assert!(check3(&c.as_vec(), [(); 3]));
     }
 
     #[test]
