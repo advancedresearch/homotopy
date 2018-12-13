@@ -73,6 +73,27 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Back(self)
     }
 
+    /// Gets a left-right intersection, controlled by `s`.
+    fn left_right<'a, S>(&'a self, s: f64) -> LeftRight<&'a Self>
+        where LeftRight<&'a Self>: Homotopy<X, S>
+    {
+        LeftRight(self, s)
+    }
+
+    /// Gets a top-bottom intersection, controlled by `s`.
+    fn top_bottom<'a, S>(&'a self, s: f64) -> TopBottom<&'a Self>
+        where TopBottom<&'a Self>: Homotopy<X, S>
+    {
+        TopBottom(self, s)
+    }
+
+    /// Gets a front-back intersection, controlled by `s`.
+    fn front_back<'a, S>(&'a self, s: f64) -> FrontBack<&'a Self>
+        where FrontBack<&'a Self>: Homotopy<X, S>
+    {
+        FrontBack(self, s)
+    }
+
     /// Gets a converter to and from vectors.
     fn as_vec<'a, S, VX>(&'a self) -> AsVec<&'a Self>
         where AsVec<&'a Self>: Homotopy<VX, S>
@@ -540,6 +561,8 @@ mod tests {
         assert!(check2(&c, unit));
         assert!(check(&c.diagonal(), unit));
         assert!(check2(&c.as_vec(), [(); 2]));
+        assert!(check(&c.left_right(0.5), unit));
+        assert!(check(&c.top_bottom(0.5), unit));
     }
 
     #[test]
@@ -552,6 +575,9 @@ mod tests {
         assert!(check3(&c, unit));
         assert!(check(&c.diagonal(), unit));
         assert!(check3(&c.as_vec(), [(); 3]));
+        assert!(check2(&c.left_right(0.5), unit));
+        assert!(check2(&c.top_bottom(0.5), unit));
+        assert!(check2(&c.front_back(0.5), unit));
     }
 
     #[test]
