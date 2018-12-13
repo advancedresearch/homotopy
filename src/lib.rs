@@ -5,7 +5,7 @@
 use std::ops::{Add, Mul};
 use std::marker::PhantomData;
 
-/// A continuous map between two continuous maps.
+/// A continuous map between two functions.
 pub trait Homotopy<X, Scalar=f64> {
     /// The output type.
     type Y;
@@ -182,6 +182,36 @@ impl<Y> Homotopy<()> for CubicBezier<Y>
     }
 }
 
+/// Functional composition that is itself a homotopy.
+pub struct Compose<X, H1, H2>
+    where H1: Homotopy<X>, H2: Homotopy<H1::Y>
+{
+    h1: H1,
+    h2: H2,
+    _x: PhantomData<X>,
+}
+
+impl<X, H1, H2> Compose<X, H1, H2>
+    where H1: Homotopy<X>, H2: Homotopy<H1::Y>
+{
+    /// Creates a new composition of two homotopy maps.
+    pub fn new(h1: H1, h2: H2) -> Self {
+        Compose {
+            h1, h2, _x: PhantomData
+        }
+    }
+}
+
+impl<X, H1, H2> Homotopy<X> for Compose<X, H1, H2>
+    where H1: Homotopy<X>, H2: Homotopy<H1::Y>
+{
+    type Y = H2::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.h2.f(self.h1.f(x))}
+    fn g(&self, x: X) -> Self::Y {self.h2.g(self.h1.g(x))}
+    fn h(&self, x: X, s: f64) -> Self::Y {self.h2.h(self.h1.h(x, s), s)}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,5 +275,23 @@ mod tests {
             s += 0.1;
             if s > 1.0 {break}
         }
+    }
+
+    #[test]
+    fn check_composition() {
+        // Create a linear interpolation.
+        let a = Lerp(3.0, 10.0);
+        assert_eq!(a.h((), 0.0), 3.0);
+        assert_eq!(a.h((), 0.5), 6.5);
+        assert_eq!(a.h((), 1.0), 10.0);
+        // Compose with a Dirac From that seperates the start of the line
+        // from the rest of the line.
+        let b = DiracFrom::new(|x| x - 2.0, |x| x + 2.0);
+        let c = Compose::new(a, b);
+        check(&c, ());
+        assert_eq!(c.h((), 0.0), 1.0);
+        assert_eq!(c.h((), 0.0000000000000001), 5.0);
+        assert_eq!(c.h((), 0.5), 8.5);
+        assert_eq!(c.h((), 1.0), 12.0);
     }
 }
