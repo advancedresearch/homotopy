@@ -2,7 +2,7 @@
 
 #![deny(missing_docs)]
 
-use std::ops::{Add, Mul};
+use std::ops::{Add, Sub, Mul};
 use std::marker::PhantomData;
 
 pub use sides::*;
@@ -581,6 +581,44 @@ impl<X, Y, S, T> Homotopy<[X; 4], S> for AsVec<T>
     }
 }
 
+/// Generates points on a circle.
+#[derive(Copy, Clone)]
+pub struct Circle<T> {
+    /// Center of circle.
+    pub center: [T; 2],
+    /// Radius of circle.
+    pub radius: T
+}
+
+impl<T> Homotopy<()> for Circle<T>
+    where T: Clone + Add<Output = T> + Sub<Output = T> + Mul<f64, Output = T>
+{
+    type Y = [T; 2];
+
+    fn f(&self, _: ()) -> Self::Y {
+        [self.center[0].clone() + self.radius.clone(), self.center[1].clone()]
+    }
+    fn g(&self, _: ()) -> Self::Y {
+        [self.center[0].clone() + self.radius.clone(), self.center[1].clone()]
+    }
+    fn h(&self, _: (), s: f64) -> Self::Y {
+        // Handle special cases to get exact values.
+        if s == 1.0 {
+            return self.g(())
+        } else if s == 0.5 {
+            return [self.center[0].clone() - self.radius.clone(), self.center[1].clone()]
+        } else if s == 0.25 {
+            return [self.center[0].clone(), self.center[1].clone() + self.radius.clone()]
+        } else if s == 0.75 {
+            return [self.center[0].clone(), self.center[1].clone() - self.radius.clone()]
+        };
+        [
+            self.center[0].clone() + self.radius.clone() * (s * std::f64::consts::PI * 2.0).cos(),
+            self.center[1].clone() + self.radius.clone() * (s * std::f64::consts::PI * 2.0).sin(),
+        ]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -714,5 +752,40 @@ mod tests {
         let a = Lerp(2.0, 4.0);
         let b = a.inverse();
         assert!(check(&b, ()));
+    }
+
+    #[test]
+    fn check_circle() {
+        let a = Circle {center: [0.0, 0.0], radius: 1.0};
+        assert!(check(&a, ()));
+        assert_eq!(a.h((), 0.0), [1.0, 0.0]);
+        assert_eq!(a.h((), 0.5), [-1.0, 0.0]);
+        assert_eq!(a.h((), 0.25), [0.0, 1.0]);
+        assert_eq!(a.h((), 0.75), [0.0, -1.0]);
+        assert_eq!(a.h((), 1.0), [1.0, 0.0]);
+
+        let b = Circle {center: [0.0, 0.0], radius: 2.0};
+        let c = Square::new(a, b);
+        let c = c.as_vec();
+        let unit = [(); 2];
+        assert!(check2(&c, unit));
+        assert_eq!(c.h(unit, [0.5, 0.25]), [[-1.0, 0.0], [0.0, 2.0]]);
+
+        // A diagonal of a square of two circles is a sector sweep.
+        let diag_c = c.diagonal();
+        assert_eq!(diag_c.h(unit, 0.0), [[1.0, 0.0], [2.0, 0.0]]);
+        assert_eq!(diag_c.h(unit, 0.25), [[0.0, 1.0], [0.0, 2.0]]);
+        assert_eq!(diag_c.h(unit, 0.5), [[-1.0, 0.0], [-2.0, 0.0]]);
+        assert_eq!(diag_c.h(unit, 0.75), [[0.0, -1.0], [0.0, -2.0]]);
+        assert_eq!(diag_c.h(unit, 1.0), [[1.0, 0.0], [2.0, 0.0]]);
+        assert!(check(&diag_c, unit));
+
+        // The left side is like locking the inner circle.
+        let left_c = c.left();
+        assert_eq!(left_c.h(unit, 0.5), [[1.0, 0.0], [-2.0, 0.0]]);
+
+        // The right side is like locking the outer circle.
+        let top_c = c.top();
+        assert_eq!(top_c.h(unit, 0.5), [[-1.0, 0.0], [2.0, 0.0]]);
     }
 }
