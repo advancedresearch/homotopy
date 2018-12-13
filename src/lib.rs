@@ -73,6 +73,24 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Back(self)
     }
 
+    /// Gets the past side.
+    ///
+    /// This is for 4D homotopy maps.
+    fn past<'a, S>(&'a self) -> Past<&'a Self>
+        where Past<&'a Self>: Homotopy<X, S>
+    {
+        Past(self)
+    }
+
+    /// Gets the future side.
+    ///
+    /// This is for 4D homotopy maps.
+    fn future<'a, S>(&'a self) -> Future<&'a Self>
+        where Future<&'a Self>: Homotopy<X, S>
+    {
+        Future(self)
+    }
+
     /// Gets a left-right intersection, controlled by `s`.
     fn left_right<'a, S>(&'a self, s: f64) -> LeftRight<&'a Self>
         where LeftRight<&'a Self>: Homotopy<X, S>
@@ -92,6 +110,13 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         where FrontBack<&'a Self>: Homotopy<X, S>
     {
         FrontBack(self, s)
+    }
+
+    /// Gets a past-future intersection, controlled by `s`.
+    fn past_future<'a, S>(&'a self, s: f64) -> PastFuture<&'a Self>
+        where PastFuture<&'a Self>: Homotopy<X, S>
+    {
+        PastFuture(self, s)
     }
 
     /// Gets a converter to and from vectors.
@@ -157,6 +182,27 @@ pub fn check3<H, X>(h: &H, x: X) -> bool
     check2(&h.bottom(), x.clone()) &&
     check2(&h.front(), x.clone()) &&
     check2(&h.back(), x.clone())
+}
+
+/// Checks that the 4D homotopy constraints hold for some input `x`.
+#[must_use]
+pub fn check4<H, X>(h: &H, x: X) -> bool
+    where H: Homotopy<X, [f64; 4]>,
+          H::Y: PartialEq,
+          X: Clone,
+{
+    let a = h.f(x.clone());
+    let b = h.g(x.clone());
+    h.h(x.clone(), [0.0; 4]) == a &&
+    h.h(x.clone(), [1.0; 4]) == b &&
+    check3(&h.left(), x.clone()) &&
+    check3(&h.right(), x.clone()) &&
+    check3(&h.top(), x.clone()) &&
+    check3(&h.bottom(), x.clone()) &&
+    check3(&h.front(), x.clone()) &&
+    check3(&h.back(), x.clone()) &&
+    check3(&h.past(), x.clone()) &&
+    check3(&h.future(), x.clone())
 }
 
 /// Identity homotopy.
@@ -396,7 +442,7 @@ pub struct Cube<X1, X2, X3, H1, H2, H3>
 impl<X1, X2, X3, H1, H2, H3> Cube<X1, X2, X3, H1, H2, H3>
     where H1: Homotopy<X1>, H2: Homotopy<X2>, H3: Homotopy<X3>
 {
-    /// Creates a new cube to three homotopy maps.
+    /// Creates a new cube of three homotopy maps.
     pub fn new(h1: H1, h2: H2, h3: H3) -> Self {
         Cube {h1, h2, h3, _x1: PhantomData, _x2: PhantomData, _x3: PhantomData}
     }
@@ -411,6 +457,53 @@ impl<X1, X2, X3, H1, H2, H3> Homotopy<(X1, X2, X3), [f64; 3]> for Cube<X1, X2, X
     fn g(&self, x: (X1, X2, X3)) -> Self::Y {(self.h1.g(x.0), self.h2.g(x.1), self.h3.g(x.2))}
     fn h(&self, x: (X1, X2, X3), s: [f64; 3]) -> Self::Y {
         (self.h1.h(x.0, s[0]), self.h2.h(x.1, s[1]), self.h3.h(x.2, s[2]))
+    }
+}
+
+/// Takes the 4-cube of four homotopy maps and produces a 4D homotopy.
+#[derive(Copy, Clone)]
+pub struct Cube4<X1, X2, X3, X4, H1, H2, H3, H4>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>, H3: Homotopy<X3>, H4: Homotopy<X4>
+{
+    h1: H1,
+    h2: H2,
+    h3: H3,
+    h4: H4,
+    _x1: PhantomData<X1>,
+    _x2: PhantomData<X2>,
+    _x3: PhantomData<X3>,
+    _x4: PhantomData<X4>,
+}
+
+impl<X1, X2, X3, X4, H1, H2, H3, H4> Cube4<X1, X2, X3, X4, H1, H2, H3, H4>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>, H3: Homotopy<X3>, H4: Homotopy<X4>
+{
+    /// Creates a new 4-cube of four homotopy maps.
+    pub fn new(h1: H1, h2: H2, h3: H3, h4: H4) -> Self {
+        Cube4 {
+            h1, h2, h3, h4,
+            _x1: PhantomData,
+            _x2: PhantomData,
+            _x3: PhantomData,
+            _x4: PhantomData,
+        }
+    }
+}
+
+impl<X1, X2, X3, X4, H1, H2, H3, H4> Homotopy<(X1, X2, X3, X4), [f64; 4]>
+for Cube4<X1, X2, X3, X4, H1, H2, H3, H4>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>, H3: Homotopy<X3>, H4: Homotopy<X4>
+{
+    type Y = (H1::Y, H2::Y, H3::Y, H4::Y);
+
+    fn f(&self, x: (X1, X2, X3, X4)) -> Self::Y {
+        (self.h1.f(x.0), self.h2.f(x.1), self.h3.f(x.2), self.h4.f(x.3))
+    }
+    fn g(&self, x: (X1, X2, X3, X4)) -> Self::Y {
+        (self.h1.g(x.0), self.h2.g(x.1), self.h3.g(x.2), self.h4.g(x.3))
+    }
+    fn h(&self, x: (X1, X2, X3, X4), s: [f64; 4]) -> Self::Y {
+        (self.h1.h(x.0, s[0]), self.h2.h(x.1, s[1]), self.h3.h(x.2, s[2]), self.h4.h(x.3, s[3]))
     }
 }
 
@@ -466,6 +559,25 @@ impl<X, Y, S, T> Homotopy<[X; 3], S> for AsVec<T>
     fn h(&self, x: [X; 3], s: S) -> Self::Y {
         let (a, b, c) = self.0.h((x[0], x[1], x[2]), s);
         [a, b, c]
+    }
+}
+
+impl<X, Y, S, T> Homotopy<[X; 4], S> for AsVec<T>
+    where T: Homotopy<(X, X, X, X), S, Y = (Y, Y, Y, Y)>, X: Copy
+{
+    type Y = [Y; 4];
+
+    fn f(&self, x: [X; 4]) -> Self::Y {
+        let (a, b, c, d) = self.0.f((x[0], x[1], x[2], x[3]));
+        [a, b, c, d]
+    }
+    fn g(&self, x: [X; 4]) -> Self::Y {
+        let (a, b, c, d) = self.0.g((x[0], x[1], x[2], x[3]));
+        [a, b, c, d]
+    }
+    fn h(&self, x: [X; 4], s: S) -> Self::Y {
+        let (a, b, c, d) = self.0.h((x[0], x[1], x[2], x[3]), s);
+        [a, b, c, d]
     }
 }
 
@@ -578,6 +690,23 @@ mod tests {
         assert!(check2(&c.left_right(0.5), unit));
         assert!(check2(&c.top_bottom(0.5), unit));
         assert!(check2(&c.front_back(0.5), unit));
+    }
+
+    #[test]
+    fn check_cube4() {
+        let a = Lerp(1.0, 2.0);
+        let b = Lerp(3.0, 4.0);
+        let c = Lerp(5.0, 6.0);
+        let d = Lerp(7.0, 8.0);
+        let c = Cube4::new(a, b, c, d);
+        let unit = ((), (), (), ());
+        assert!(check4(&c, unit));
+        assert!(check(&c.diagonal(), unit));
+        assert!(check4(&c.as_vec(), [(); 4]));
+        assert!(check3(&c.left_right(0.5), unit));
+        assert!(check3(&c.top_bottom(0.5), unit));
+        assert!(check3(&c.front_back(0.5), unit));
+        assert!(check3(&c.past_future(0.5), unit));
     }
 
     #[test]
