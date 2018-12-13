@@ -5,8 +5,12 @@
 use std::ops::{Add, Mul};
 use std::marker::PhantomData;
 
+pub use sides::*;
+
+mod sides;
+
 /// A continuous map between two functions.
-pub trait Homotopy<X, Scalar=f64> {
+pub trait Homotopy<X, Scalar=f64>: Sized {
     /// The output type.
     type Y;
 
@@ -16,9 +20,59 @@ pub trait Homotopy<X, Scalar=f64> {
     fn g(&self, X) -> Self::Y;
     /// A continuous map such that `h(x, 0.0) == f(x)` and `h(x, 1.0) == g(x)`.
     fn h(&self, X, Scalar) -> Self::Y;
+
+    /// Gets the diagonal.
+    fn diagonal<'a>(&'a self) -> Diagonal<'a, Self, Scalar>
+        where Diagonal<'a, Self, Scalar>: Homotopy<X>
+    {
+        Diagonal::new(self)
+    }
+
+    /// Gets the left side.
+    fn left<'a, S>(&'a self) -> Left<'a, Self>
+        where Left<'a, Self>: Homotopy<X, S>
+    {
+        Left(self)
+    }
+
+    /// Gets the right side.
+    fn right<'a, S>(&'a self) -> Right<'a, Self>
+        where Right<'a, Self>: Homotopy<X, S>
+    {
+        Right(self)
+    }
+
+    /// Gets the top side.
+    fn top<'a, S>(&'a self) -> Top<'a, Self>
+        where Top<'a, Self>: Homotopy<X, S>
+    {
+        Top(self)
+    }
+
+    /// Gets the bottom side.
+    fn bottom<'a, S>(&'a self) -> Bottom<'a, Self>
+        where Bottom<'a, Self>: Homotopy<X, S>
+    {
+        Bottom(self)
+    }
+
+    /// Gets the front side.
+    fn front<'a, S>(&'a self) -> Front<'a, Self>
+        where Front<'a, Self>: Homotopy<X, S>
+    {
+        Front(self)
+    }
+
+    /// Gets the back side.
+    fn back<'a, S>(&'a self) -> Back<'a, Self>
+        where Back<'a, Self>: Homotopy<X, S>
+    {
+        Back(self)
+    }
 }
 
 /// Checks that the homotopy constraints hold for some input `x`.
+#[must_use]
 pub fn check<H, X>(h: &H, x: X) -> bool
     where H: Homotopy<X>,
           H::Y: PartialEq,
@@ -28,9 +82,46 @@ pub fn check<H, X>(h: &H, x: X) -> bool
     h.h(x.clone(), 1.0) == h.g(x)
 }
 
+/// Checks that the 2D homotopy constraints hold for some input `x`.
+#[must_use]
+pub fn check2<H, X>(h: &H, x: X) -> bool
+    where H: Homotopy<X, [f64; 2]>,
+          H::Y: PartialEq,
+          X: Clone,
+{
+    let a = h.f(x.clone());
+    let b = h.g(x.clone());
+    h.h(x.clone(), [0.0, 0.0]) == a &&
+    h.h(x.clone(), [1.0, 1.0]) == b &&
+    check(&h.left(), x.clone()) &&
+    check(&h.right(), x.clone()) &&
+    check(&h.top(), x.clone()) &&
+    check(&h.bottom(), x.clone())
+}
+
+/// Checks that the 3D homotopy constraints hold for some input `x`.
+#[must_use]
+pub fn check3<H, X>(h: &H, x: X) -> bool
+    where H: Homotopy<X, [f64; 3]>,
+          H::Y: PartialEq,
+          X: Clone,
+{
+    let a = h.f(x.clone());
+    let b = h.g(x.clone());
+    h.h(x.clone(), [0.0, 0.0, 0.0]) == a &&
+    h.h(x.clone(), [1.0, 1.0, 1.0]) == b &&
+    check2(&h.left(), x.clone()) &&
+    check2(&h.right(), x.clone()) &&
+    check2(&h.top(), x.clone()) &&
+    check2(&h.bottom(), x.clone()) &&
+    check2(&h.front(), x.clone()) &&
+    check2(&h.back(), x.clone())
+}
+
 /// Identity homotopy.
 ///
 /// `f`, `g` and `h` uses the identity function, so this is a homotopy.
+#[derive(Copy, Clone)]
 pub struct Id;
 
 impl<X> Homotopy<X> for Id {
@@ -42,6 +133,7 @@ impl<X> Homotopy<X> for Id {
 }
 
 /// The Dirac function.
+#[derive(Copy, Clone)]
 pub struct Dirac;
 
 impl Homotopy<()> for Dirac {
@@ -56,6 +148,7 @@ impl Homotopy<()> for Dirac {
 ///
 /// Define `h` to be `f` at 0.0 and `g` elsewhere.
 /// Since `h` is `g` at 1.0, this is a homotopy.
+#[derive(Copy, Clone)]
 pub struct DiracFrom<X, Y, F, G>
     where F: Fn(X) -> Y, G: Fn(X) -> Y
 {
@@ -98,6 +191,7 @@ impl<X, Y, F, G> Homotopy<X> for DiracFrom<X, Y, F, G>
 ///
 /// `f` and `g` are functions mapping `()` to a value.
 /// The scalar passed to `h` controls the linear map.
+#[derive(Copy, Clone)]
 pub struct Lerp<X>(pub X, pub X);
 
 impl<Y> Homotopy<()> for Lerp<Y>
@@ -113,6 +207,7 @@ impl<Y> Homotopy<()> for Lerp<Y>
 /// Quadratic Bezier homotopy.
 ///
 /// Maps from point A to C using a point B as control point.
+#[derive(Copy, Clone)]
 pub struct QuadraticBezier<X>(pub X, pub X, pub X);
 
 impl<X> QuadraticBezier<X> {
@@ -149,6 +244,7 @@ impl<Y> Homotopy<()> for QuadraticBezier<Y>
 /// Cubic Bezier homotopy.
 ///
 /// Maps from point A to D using point B and C as control points.
+#[derive(Copy, Clone)]
 pub struct CubicBezier<X>(pub X, pub X, pub X, pub X);
 
 impl<X> CubicBezier<X> {
@@ -183,6 +279,7 @@ impl<Y> Homotopy<()> for CubicBezier<Y>
 }
 
 /// Functional composition that is itself a homotopy.
+#[derive(Copy, Clone)]
 pub struct Compose<X, H1, H2>
     where H1: Homotopy<X>, H2: Homotopy<H1::Y>
 {
@@ -212,45 +309,109 @@ impl<X, H1, H2> Homotopy<X> for Compose<X, H1, H2>
     fn h(&self, x: X, s: f64) -> Self::Y {self.h2.h(self.h1.h(x, s), s)}
 }
 
+/// Takes the square of two homotopy maps and produces a 2D homotopy.
+#[derive(Copy, Clone)]
+pub struct Square<X1, X2, H1, H2>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>
+{
+    h1: H1,
+    h2: H2,
+    _x1: PhantomData<X1>,
+    _x2: PhantomData<X2>,
+}
+
+impl<X1, X2, H1, H2> Square<X1, X2, H1, H2>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>
+{
+    /// Creates a square of two homotopy maps.
+    pub fn new(h1: H1, h2: H2) -> Self {
+        Square {h1, h2, _x1: PhantomData, _x2: PhantomData}
+    }
+}
+
+impl<X1, X2, H1, H2> Homotopy<(X1, X2), [f64; 2]> for Square<X1, X2, H1, H2>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>
+{
+    type Y = (H1::Y, H2::Y);
+
+    fn f(&self, x: (X1, X2)) -> Self::Y {(self.h1.f(x.0), self.h2.f(x.1))}
+    fn g(&self, x: (X1, X2)) -> Self::Y {(self.h1.g(x.0), self.h2.g(x.1))}
+    fn h(&self, x: (X1, X2), s: [f64; 2]) -> Self::Y {(self.h1.h(x.0, s[0]), self.h2.h(x.1, s[1]))}
+}
+
+/// Takes the cube of three homotopy maps and produces a 3D homotopy.
+#[derive(Copy, Clone)]
+pub struct Cube<X1, X2, X3, H1, H2, H3>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>, H3: Homotopy<X3>
+{
+    h1: H1,
+    h2: H2,
+    h3: H3,
+    _x1: PhantomData<X1>,
+    _x2: PhantomData<X2>,
+    _x3: PhantomData<X3>,
+}
+
+impl<X1, X2, X3, H1, H2, H3> Cube<X1, X2, X3, H1, H2, H3>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>, H3: Homotopy<X3>
+{
+    /// Creates a new cube to three homotopy maps.
+    pub fn new(h1: H1, h2: H2, h3: H3) -> Self {
+        Cube {h1, h2, h3, _x1: PhantomData, _x2: PhantomData, _x3: PhantomData}
+    }
+}
+
+impl<X1, X2, X3, H1, H2, H3> Homotopy<(X1, X2, X3), [f64; 3]> for Cube<X1, X2, X3, H1, H2, H3>
+    where H1: Homotopy<X1>, H2: Homotopy<X2>, H3: Homotopy<X3>
+{
+    type Y = (H1::Y, H2::Y, H3::Y);
+
+    fn f(&self, x: (X1, X2, X3)) -> Self::Y {(self.h1.f(x.0), self.h2.f(x.1), self.h3.f(x.2))}
+    fn g(&self, x: (X1, X2, X3)) -> Self::Y {(self.h1.g(x.0), self.h2.g(x.1), self.h3.g(x.2))}
+    fn h(&self, x: (X1, X2, X3), s: [f64; 3]) -> Self::Y {
+        (self.h1.h(x.0, s[0]), self.h2.h(x.1, s[1]), self.h3.h(x.2, s[2]))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn check_id() {
-        check(&Id, 0.0 as f64);
-        check(&Id, 1.0 as f64);
-        check(&Id, true);
-        check(&Id, false);
+        assert!(check(&Id, 0.0 as f64));
+        assert!(check(&Id, 1.0 as f64));
+        assert!(check(&Id, true));
+        assert!(check(&Id, false));
     }
 
     #[test]
     fn check_dirac() {
-        check(&Dirac, ());
+        assert!(check(&Dirac, ()));
     }
 
     #[test]
     fn check_dirac_from() {
         let ft = DiracFrom::new(|()| 1.0, |()| 0.0);
-        check(&ft, ());
+        assert!(check(&ft, ()));
     }
 
     #[test]
     fn check_lerp() {
         let lerp = Lerp(1.2, 1.3);
-        check(&lerp, ());
+        assert!(check(&lerp, ()));
     }
 
     #[test]
     fn check_quadratic_bezier() {
         let qb = QuadraticBezier(0.3, 0.7, 0.9);
-        check(&qb, ());
+        assert!(check(&qb, ()));
     }
 
     #[test]
     fn check_cubic_bezier() {
         let cb = CubicBezier(0.3, 0.7, 0.8, 0.9);
-        check(&cb, ());
+        assert!(check(&cb, ()));
     }
 
     #[test]
@@ -288,10 +449,31 @@ mod tests {
         // from the rest of the line.
         let b = DiracFrom::new(|x| x - 2.0, |x| x + 2.0);
         let c = Compose::new(a, b);
-        check(&c, ());
+        assert!(check(&c, ()));
         assert_eq!(c.h((), 0.0), 1.0);
         assert_eq!(c.h((), 0.0000000000000001), 5.0);
         assert_eq!(c.h((), 0.5), 8.5);
         assert_eq!(c.h((), 1.0), 12.0);
+    }
+
+    #[test]
+    fn check_square() {
+        let a = Lerp(1.0, 5.0);
+        let b = Lerp(11.0, 15.0);
+        let c = Square::new(a, b);
+        let unit = ((), ());
+        assert!(check2(&c, unit));
+        assert!(check(&c.diagonal(), unit));
+    }
+
+    #[test]
+    fn check_cube() {
+        let a = Lerp(1.0, 2.0);
+        let b = Lerp(3.0, 4.0);
+        let c = Lerp(5.0, 6.0);
+        let c = Cube::new(a, b, c);
+        let unit = ((), (), ());
+        assert!(check3(&c, unit));
+        assert!(check(&c.diagonal(), unit));
     }
 }
