@@ -159,3 +159,65 @@ impl<X, T> Homotopy<X, [f64; 2]> for Back<T>
     fn g(&self, x: X) -> Self::Y {self.0.g(x)}
     fn h(&self, x: X, s: [f64; 2]) -> Self::Y {self.0.h(x, [s[0], s[1], 1.0])}
 }
+
+/// Intersects from left to right.
+#[derive(Copy, Clone)]
+pub struct LeftRight<T>(pub T, pub f64);
+
+impl<X, T> Homotopy<X> for LeftRight<T>
+    where T: Homotopy<X, [f64; 2]>
+{
+    type Y = T::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.0.h(x, [self.1, 0.0])}
+    fn g(&self, x: X) -> Self::Y {self.0.h(x, [self.1, 1.0])}
+    fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, [self.1, s])}
+}
+
+impl<X, T> Homotopy<X, [f64; 2]> for LeftRight<T>
+    where T: Homotopy<X, [f64; 3]>
+{
+    type Y = T::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.0.h(x, [self.1, 0.0, 0.0])}
+    fn g(&self, x: X) -> Self::Y {self.0.h(x, [self.1, 1.0, 1.0])}
+    fn h(&self, x: X, s: [f64; 2]) -> Self::Y {self.0.h(x, [self.1, s[0], s[1]])}
+}
+
+/// Intersects from top to botttom.
+#[derive(Copy, Clone)]
+pub struct TopBottom<T>(pub T, pub f64);
+
+impl<X, T> Homotopy<X> for TopBottom<T>
+    where T: Homotopy<X, [f64; 2]>
+{
+    type Y = T::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.0.h(x, [0.0, self.1])}
+    fn g(&self, x: X) -> Self::Y {self.0.h(x, [1.0, self.1])}
+    fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, [s, self.1])}
+}
+
+impl<X, T> Homotopy<X, [f64; 2]> for TopBottom<T>
+    where T: Homotopy<X, [f64; 3]>
+{
+    type Y = T::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.0.h(x, [0.0, self.1, 0.0])}
+    fn g(&self, x: X) -> Self::Y {self.0.h(x, [1.0, self.1, 1.0])}
+    fn h(&self, x: X, s: [f64; 2]) -> Self::Y {self.0.h(x, [s[0], self.1, s[1]])}
+}
+
+/// Intersects from front to back.
+#[derive(Copy, Clone)]
+pub struct FrontBack<T>(pub T, pub f64);
+
+impl<X, T> Homotopy<X, [f64; 2]> for FrontBack<T>
+    where T: Homotopy<X, [f64; 3]>
+{
+    type Y = T::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.0.h(x, [0.0, 0.0, self.1])}
+    fn g(&self, x: X) -> Self::Y {self.0.h(x, [1.0, 1.0, self.1])}
+    fn h(&self, x: X, s: [f64; 2]) -> Self::Y {self.0.h(x, [s[0], s[1], self.1])}
+}
