@@ -785,6 +785,68 @@ impl<T, S, X> Homotopy<(usize, X), S> for Vec<T>
     fn h(&self, (ind, x): (usize, X), s: S) -> Self::Y {self[ind].h(x, s)}
 }
 
+/// Translate some distance.
+#[derive(Copy, Clone)]
+pub struct Translate<X>(pub X);
+
+impl Homotopy<f64> for Translate<f64> {
+    type Y = f64;
+
+    fn f(&self, x: f64) -> Self::Y {x}
+    fn g(&self, x: f64) -> Self::Y {x + self.0}
+    fn h(&self, x: f64, s: f64) -> Self::Y {x + s * self.0}
+}
+
+impl Homotopy<[f64; 2]> for Translate<[f64; 2]> {
+    type Y = [f64; 2];
+
+    fn f(&self, x: [f64; 2]) -> Self::Y {x}
+    fn g(&self, x: [f64; 2]) -> Self::Y {[x[0] + self.0[0], x[1] + self.0[1]]}
+    fn h(&self, x: [f64; 2], s: f64) -> Self::Y {[x[0] + s * self.0[0], x[1] + s * self.0[1]]}
+}
+
+impl Homotopy<[f64; 3]> for Translate<[f64; 3]> {
+    type Y = [f64; 3];
+
+    fn f(&self, x: [f64; 3]) -> Self::Y {x}
+    fn g(&self, x: [f64; 3]) -> Self::Y {
+        [
+            x[0] + self.0[0],
+            x[1] + self.0[1],
+            x[2] + self.0[2],
+        ]
+    }
+    fn h(&self, x: [f64; 3], s: f64) -> Self::Y {
+        [
+            x[0] + s * self.0[0],
+            x[1] + s * self.0[1],
+            x[2] + s * self.0[2],
+        ]
+    }
+}
+
+impl Homotopy<[f64; 4]> for Translate<[f64; 4]> {
+    type Y = [f64; 4];
+
+    fn f(&self, x: [f64; 4]) -> Self::Y {x}
+    fn g(&self, x: [f64; 4]) -> Self::Y {
+        [
+            x[0] + self.0[0],
+            x[1] + self.0[1],
+            x[2] + self.0[2],
+            x[3] + self.0[3],
+        ]
+    }
+    fn h(&self, x: [f64; 4], s: f64) -> Self::Y {
+        [
+            x[0] + s * self.0[0],
+            x[1] + s * self.0[1],
+            x[2] + s * self.0[2],
+            x[3] + s * self.0[3],
+        ]
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -971,5 +1033,50 @@ mod tests {
 
         let b = vec![vec![Lerp(1.0, 2.0)]];
         assert!(check(&b, (0, 0)));
+    }
+
+    #[test]
+    fn check_translate() {
+        let a = Lerp(1.0, 2.0);
+        let b = Translate(3.0);
+        let c = Compose::new(a, b);
+        assert!(checku2(&c));
+        assert_eq!(c.hu([0.0, 0.0]), 1.0);
+        assert_eq!(c.hu([1.0, 0.0]), 2.0);
+        assert_eq!(c.hu([0.0, 1.0]), 4.0);
+        assert_eq!(c.hu([1.0, 1.0]), 5.0);
+
+        let a = Square::new(Lerp(1.0, 2.0), Lerp(3.0, 4.0));
+        let b = Translate([10.0, 20.0]);
+        let c = Compose::new(a.as_vec(), b);
+        assert_eq!(c.hu([0.0, 0.0, 0.0]), [1.0, 3.0]);
+        assert_eq!(c.hu([0.0, 0.0, 1.0]), [11.0, 23.0]);
+        assert_eq!(c.hu([1.0, 0.0, 0.0]), [2.0, 3.0]);
+        assert_eq!(c.hu([1.0, 0.0, 1.0]), [12.0, 23.0]);
+        assert!(checku3(&c));
+
+        let a = Cube::new(Lerp(0.0, 1.0), Lerp(0.0, 1.0), Lerp(0.0, 1.0));
+        let b = Translate([10.0, 20.0, 30.0]);
+        let c = Compose::new(a.as_vec(), b);
+        assert_eq!(c.hu([0.0; 4]), [0.0; 3]);
+        assert_eq!(c.hu([1.0; 4]), [11.0, 21.0, 31.0]);
+        assert!(checku4(&c));
+
+        let a = Cube4::new(Id, Id, Id, Id);
+        let b = Translate([1.0, 2.0, 3.0, 4.0]);
+        let c = Compose::new(a.as_vec(), b);
+        assert_eq!(c.h([0.0; 4], [0.0; 5]), [0.0; 4]);
+        assert_eq!(c.h([0.0; 4], [1.0; 5]), [1.0, 2.0, 3.0, 4.0]);
+
+        let a = Lerp(1.0, 2.0);
+        let b = Translate(10.0);
+        let c = Compose::new(a, b);
+        let d = Compose::new(c, b);
+        assert_eq!(d.hu([0.0, 0.0, 0.0]), 1.0);
+        assert_eq!(d.hu([0.0, 0.0, 1.0]), 11.0);
+        assert_eq!(d.hu([0.0, 1.0, 0.0]), 11.0);
+        assert_eq!(d.hu([0.0, 1.0, 1.0]), 21.0);
+        assert_eq!(d.hu([1.0, 1.0, 1.0]), 22.0);
+        assert!(checku3(&d));
     }
 }

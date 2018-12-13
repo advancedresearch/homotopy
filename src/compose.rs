@@ -77,3 +77,15 @@ impl<X, H1, H2> Homotopy<X, [f64; 4]> for Compose<H1, H2, f64, [f64; 3]>
     fn g(&self, x: X) -> Self::Y {self.h2.g(self.h1.g(x))}
     fn h(&self, x: X, s: [f64; 4]) -> Self::Y {self.h2.h(self.h1.h(x, s[0]), [s[1], s[2], s[3]])}
 }
+
+impl<X, H1, H2> Homotopy<X, [f64; 5]> for Compose<H1, H2, [f64; 4], f64>
+    where H1: Homotopy<X, [f64; 4]>, H2: Homotopy<H1::Y, f64>
+{
+    type Y = H2::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.h2.f(self.h1.f(x))}
+    fn g(&self, x: X) -> Self::Y {self.h2.g(self.h1.g(x))}
+    fn h(&self, x: X, s: [f64; 5]) -> Self::Y {
+        self.h2.h(self.h1.h(x, [s[0], s[1], s[2], s[3]]), s[4])
+    }
+}
