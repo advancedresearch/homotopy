@@ -4,19 +4,19 @@ use super::*;
 ///
 /// This interpolates along all dimensions at once.
 #[derive(Copy, Clone)]
-pub struct Diagonal<'a, T, S> {
-    shape: &'a T,
+pub struct Diagonal<T, S> {
+    shape: T,
     _s: PhantomData<S>,
 }
 
-impl<'a, T, S> Diagonal<'a, T, S> {
+impl<T, S> Diagonal<T, S> {
     /// Creates a new diagonal.
-    pub fn new(shape: &'a T) -> Self {
+    pub fn new(shape: T) -> Self {
         Diagonal {shape, _s: PhantomData}
     }
 }
 
-impl<'a, X, T> Homotopy<X> for Diagonal<'a, T, [f64; 2]>
+impl<X, T> Homotopy<X> for Diagonal<T, [f64; 2]>
     where T: Homotopy<X, [f64; 2]>
 {
     type Y = T::Y;
@@ -26,7 +26,7 @@ impl<'a, X, T> Homotopy<X> for Diagonal<'a, T, [f64; 2]>
     fn h(&self, x: X, s: f64) -> Self::Y {self.shape.h(x, [s; 2])}
 }
 
-impl<'a, X, T> Homotopy<X> for Diagonal<'a, T, [f64; 3]>
+impl<X, T> Homotopy<X> for Diagonal<T, [f64; 3]>
     where T: Homotopy<X, [f64; 3]>
 {
     type Y = T::Y;
@@ -38,9 +38,9 @@ impl<'a, X, T> Homotopy<X> for Diagonal<'a, T, [f64; 3]>
 
 /// The left side of an N-dimensional homotopy, resulting in a N-1 homotopy.
 #[derive(Copy, Clone)]
-pub struct Left<'a, T>(pub &'a T);
+pub struct Left<T>(pub T);
 
-impl<'a, X, T> Homotopy<X> for Left<'a, T>
+impl<X, T> Homotopy<X> for Left<T>
     where T: Homotopy<X, [f64; 2]>
 {
     type Y = T::Y;
@@ -50,7 +50,7 @@ impl<'a, X, T> Homotopy<X> for Left<'a, T>
     fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, [0.0, s])}
 }
 
-impl<'a, X, T> Homotopy<X, [f64; 2]> for Left<'a, T>
+impl<X, T> Homotopy<X, [f64; 2]> for Left<T>
     where T: Homotopy<X, [f64; 3]>
 {
     type Y = T::Y;
@@ -62,9 +62,9 @@ impl<'a, X, T> Homotopy<X, [f64; 2]> for Left<'a, T>
 
 /// The right side of an N-dimensional homotopy, resulting in a N-1 homotopy.
 #[derive(Copy, Clone)]
-pub struct Right<'a, T>(pub &'a T);
+pub struct Right<T>(pub T);
 
-impl<'a, X, T> Homotopy<X> for Right<'a, T>
+impl<X, T> Homotopy<X> for Right<T>
     where T: Homotopy<X, [f64; 2]>
 {
     type Y = T::Y;
@@ -74,7 +74,7 @@ impl<'a, X, T> Homotopy<X> for Right<'a, T>
     fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, [1.0, s])}
 }
 
-impl<'a, X, T> Homotopy<X, [f64; 2]> for Right<'a, T>
+impl<X, T> Homotopy<X, [f64; 2]> for Right<T>
     where T: Homotopy<X, [f64; 3]>
 {
     type Y = T::Y;
@@ -86,9 +86,9 @@ impl<'a, X, T> Homotopy<X, [f64; 2]> for Right<'a, T>
 
 /// The top side of an N-dimensional homotopy, resulting in a N-1 homotopy.
 #[derive(Copy, Clone)]
-pub struct Top<'a, T>(pub &'a T);
+pub struct Top<T>(pub T);
 
-impl<'a, X, T> Homotopy<X> for Top<'a, T>
+impl<X, T> Homotopy<X> for Top<T>
     where T: Homotopy<X, [f64; 2]>
 {
     type Y = T::Y;
@@ -98,7 +98,7 @@ impl<'a, X, T> Homotopy<X> for Top<'a, T>
     fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, [s, 0.0])}
 }
 
-impl<'a, X, T> Homotopy<X, [f64; 2]> for Top<'a, T>
+impl<X, T> Homotopy<X, [f64; 2]> for Top<T>
     where T: Homotopy<X, [f64; 3]>
 {
     type Y = T::Y;
@@ -110,9 +110,9 @@ impl<'a, X, T> Homotopy<X, [f64; 2]> for Top<'a, T>
 
 /// The bottom side of an N-dimensional homotopy, resulting in a N-1 homotopy.
 #[derive(Copy, Clone)]
-pub struct Bottom<'a, T>(pub &'a T);
+pub struct Bottom<T>(pub T);
 
-impl<'a, X, T> Homotopy<X> for Bottom<'a, T>
+impl<X, T> Homotopy<X> for Bottom<T>
     where T: Homotopy<X, [f64; 2]>
 {
     type Y = T::Y;
@@ -122,7 +122,7 @@ impl<'a, X, T> Homotopy<X> for Bottom<'a, T>
     fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, [s, 1.0])}
 }
 
-impl<'a, X, T> Homotopy<X, [f64; 2]> for Bottom<'a, T>
+impl<X, T> Homotopy<X, [f64; 2]> for Bottom<T>
     where T: Homotopy<X, [f64; 3]>
 {
     type Y = T::Y;
@@ -134,9 +134,9 @@ impl<'a, X, T> Homotopy<X, [f64; 2]> for Bottom<'a, T>
 
 /// The front side of an N-dimensional homotopy, resulting in a N-1 homotopy.
 #[derive(Copy, Clone)]
-pub struct Front<'a, T>(pub &'a T);
+pub struct Front<T>(pub T);
 
-impl<'a, X, T> Homotopy<X, [f64; 2]> for Front<'a, T>
+impl<X, T> Homotopy<X, [f64; 2]> for Front<T>
     where T: Homotopy<X, [f64; 3]>
 {
     type Y = T::Y;
@@ -148,9 +148,9 @@ impl<'a, X, T> Homotopy<X, [f64; 2]> for Front<'a, T>
 
 /// The back side of an N-dimensional homotopy, resulting in a N-1 homotopy.
 #[derive(Copy, Clone)]
-pub struct Back<'a, T>(pub &'a T);
+pub struct Back<T>(pub T);
 
-impl<'a, X, T> Homotopy<X, [f64; 2]> for Back<'a, T>
+impl<X, T> Homotopy<X, [f64; 2]> for Back<T>
     where T: Homotopy<X, [f64; 3]>
 {
     type Y = T::Y;

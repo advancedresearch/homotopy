@@ -21,54 +21,67 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
     /// A continuous map such that `h(x, 0.0) == f(x)` and `h(x, 1.0) == g(x)`.
     fn h(&self, X, Scalar) -> Self::Y;
 
+    /// Gets the inverse.
+    fn inverse<'a>(&'a self) -> Inverse<&'a Self> {Inverse(self)}
+
     /// Gets the diagonal.
-    fn diagonal<'a>(&'a self) -> Diagonal<'a, Self, Scalar>
-        where Diagonal<'a, Self, Scalar>: Homotopy<X>
+    fn diagonal<'a>(&'a self) -> Diagonal<&'a Self, Scalar>
+        where Diagonal<&'a Self, Scalar>: Homotopy<X>
     {
         Diagonal::new(self)
     }
 
     /// Gets the left side.
-    fn left<'a, S>(&'a self) -> Left<'a, Self>
-        where Left<'a, Self>: Homotopy<X, S>
+    fn left<'a, S>(&'a self) -> Left<&'a Self>
+        where Left<&'a Self>: Homotopy<X, S>
     {
         Left(self)
     }
 
     /// Gets the right side.
-    fn right<'a, S>(&'a self) -> Right<'a, Self>
-        where Right<'a, Self>: Homotopy<X, S>
+    fn right<'a, S>(&'a self) -> Right<&'a Self>
+        where Right<&'a Self>: Homotopy<X, S>
     {
         Right(self)
     }
 
     /// Gets the top side.
-    fn top<'a, S>(&'a self) -> Top<'a, Self>
-        where Top<'a, Self>: Homotopy<X, S>
+    fn top<'a, S>(&'a self) -> Top<&'a Self>
+        where Top<&'a Self>: Homotopy<X, S>
     {
         Top(self)
     }
 
     /// Gets the bottom side.
-    fn bottom<'a, S>(&'a self) -> Bottom<'a, Self>
-        where Bottom<'a, Self>: Homotopy<X, S>
+    fn bottom<'a, S>(&'a self) -> Bottom<&'a Self>
+        where Bottom<&'a Self>: Homotopy<X, S>
     {
         Bottom(self)
     }
 
     /// Gets the front side.
-    fn front<'a, S>(&'a self) -> Front<'a, Self>
-        where Front<'a, Self>: Homotopy<X, S>
+    fn front<'a, S>(&'a self) -> Front<&'a Self>
+        where Front<&'a Self>: Homotopy<X, S>
     {
         Front(self)
     }
 
     /// Gets the back side.
-    fn back<'a, S>(&'a self) -> Back<'a, Self>
-        where Back<'a, Self>: Homotopy<X, S>
+    fn back<'a, S>(&'a self) -> Back<&'a Self>
+        where Back<&'a Self>: Homotopy<X, S>
     {
         Back(self)
     }
+}
+
+impl<'a, X, T, S> Homotopy<X, S> for &'a T
+    where T: Homotopy<X, S>
+{
+    type Y = T::Y;
+
+    fn f(&self, x: X) -> Self::Y {T::f(self, x)}
+    fn g(&self, x: X) -> Self::Y {T::g(self, x)}
+    fn h(&self, x: X, s: S) -> Self::Y {T::h(self, x, s)}
 }
 
 /// Checks that the homotopy constraints hold for some input `x`.
@@ -373,6 +386,19 @@ impl<X1, X2, X3, H1, H2, H3> Homotopy<(X1, X2, X3), [f64; 3]> for Cube<X1, X2, X
     }
 }
 
+/// Inverts the direction of a homotopy.
+pub struct Inverse<T>(pub T);
+
+impl<X, T> Homotopy<X> for Inverse<T>
+    where T: Homotopy<X>
+{
+    type Y = T::Y;
+
+    fn f(&self, x: X) -> Self::Y {self.0.g(x)}
+    fn g(&self, x: X) -> Self::Y {self.0.f(x)}
+    fn h(&self, x: X, s: f64) -> Self::Y {self.0.h(x, 1.0 - s)}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -475,5 +501,12 @@ mod tests {
         let unit = ((), (), ());
         assert!(check3(&c, unit));
         assert!(check(&c.diagonal(), unit));
+    }
+
+    #[test]
+    fn check_invert() {
+        let a = Lerp(2.0, 4.0);
+        let b = a.inverse();
+        assert!(check(&b, ()));
     }
 }
