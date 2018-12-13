@@ -6,8 +6,10 @@ use std::ops::{Add, Sub, Mul};
 use std::marker::PhantomData;
 
 pub use sides::*;
+pub use compose::*;
 
 mod sides;
+mod compose;
 
 /// A continuous map between two functions.
 pub trait Homotopy<X, Scalar=f64>: Sized {
@@ -452,32 +454,6 @@ impl<Y> Homotopy<()> for CubicBezier<Y>
     }
 }
 
-/// Functional composition that is itself a homotopy.
-#[derive(Copy, Clone)]
-pub struct Compose<H1, H2> {
-    h1: H1,
-    h2: H2,
-}
-
-impl<H1, H2> Compose<H1, H2> {
-    /// Creates a new composition of two homotopy maps.
-    pub fn new(h1: H1, h2: H2) -> Self {
-        Compose {
-            h1, h2
-        }
-    }
-}
-
-impl<X, H1, H2, S> Homotopy<X, S> for Compose<H1, H2>
-    where H1: Homotopy<X, S>, H2: Homotopy<H1::Y, S>, S: Copy
-{
-    type Y = H2::Y;
-
-    fn f(&self, x: X) -> Self::Y {self.h2.f(self.h1.f(x))}
-    fn g(&self, x: X) -> Self::Y {self.h2.g(self.h1.g(x))}
-    fn h(&self, x: X, s: S) -> Self::Y {self.h2.h(self.h1.h(x, s), s)}
-}
-
 /// Takes the square of two homotopy maps and produces a 2D homotopy.
 #[derive(Copy, Clone)]
 pub struct Square<X1, X2, H1, H2>
@@ -789,6 +765,26 @@ impl<H, F, Y2, X> Homotopy<X, [f64; 4]> for SMap<H, F, H::Y, Y2, f64>
     fn h(&self, x: X, s: [f64; 4]) -> Self::Y {(self.fun)(self.hom.h(x, [s[0], s[1], s[2]]), s[3])}
 }
 
+impl<T, S> Homotopy<usize, S> for Vec<T>
+    where T: Homotopy<(), S>
+{
+    type Y = T::Y;
+
+    fn f(&self, ind: usize) -> Self::Y {self[ind].f(())}
+    fn g(&self, ind: usize) -> Self::Y {self[ind].g(())}
+    fn h(&self, ind: usize, s: S) -> Self::Y {self[ind].h((), s)}
+}
+
+impl<T, S, X> Homotopy<(usize, X), S> for Vec<T>
+    where T: Homotopy<X, S>
+{
+    type Y = T::Y;
+
+    fn f(&self, (ind, x): (usize, X)) -> Self::Y {self[ind].f(x)}
+    fn g(&self, (ind, x): (usize, X)) -> Self::Y {self[ind].g(x)}
+    fn h(&self, (ind, x): (usize, X), s: S) -> Self::Y {self[ind].h(x, s)}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -865,11 +861,23 @@ mod tests {
         // from the rest of the line.
         let b = DiracFrom::new(|x| x - 2.0, |x| x + 2.0);
         let c = Compose::new(a, b);
-        assert!(checku(&c));
-        assert_eq!(c.hu(0.0), 1.0);
-        assert_eq!(c.hu(0.0000000000000001), 5.0);
-        assert_eq!(c.hu(0.5), 8.5);
-        assert_eq!(c.hu(1.0), 12.0);
+        assert!(checku2(&c));
+
+        assert_eq!(c.hu([0.0, 0.0]), 1.0);
+        assert_eq!(c.hu([0.0000000000000001, 0.0]), 1.0000000000000004);
+        assert_eq!(c.hu([0.5, 0.0]), 4.5);
+        assert_eq!(c.hu([1.0, 0.0]), 8.0);
+
+        assert_eq!(c.hu([0.0, 1.0]), 5.0);
+        assert_eq!(c.hu([0.0000000000000001, 1.0]), 5.0);
+        assert_eq!(c.hu([0.5, 1.0]), 8.5);
+        assert_eq!(c.hu([1.0, 1.0]), 12.0);
+
+        let d = c.diagonal();
+        assert_eq!(d.hu(0.0), 1.0);
+        assert_eq!(d.hu(0.0000000000000001), 5.0);
+        assert_eq!(d.hu(0.5), 8.5);
+        assert_eq!(d.hu(1.0), 12.0);
     }
 
     #[test]
@@ -953,5 +961,15 @@ mod tests {
         // The right side is like locking the outer circle.
         let top_c = c.top();
         assert_eq!(top_c.hu(0.5), [[-1.0, 0.0], [2.0, 0.0]]);
+    }
+
+    #[test]
+    fn check_list() {
+        let a = vec![Lerp(1.0, 2.0), Lerp(3.0, 4.0)];
+        assert!(check(&a, 0));
+        assert!(check(&a, 1));
+
+        let b = vec![vec![Lerp(1.0, 2.0)]];
+        assert!(check(&b, (0, 0)));
     }
 }
