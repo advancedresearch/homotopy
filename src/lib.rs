@@ -38,9 +38,23 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Diagonal::new(self)
     }
 
+    /// Gets the diagonal.
+    fn into_diagonal(self) -> Diagonal<Self, Scalar>
+        where Diagonal<Self, Scalar>: Homotopy<X>
+    {
+        Diagonal::new(self)
+    }
+
     /// Gets the left side.
     fn left<'a, S>(&'a self) -> Left<&'a Self>
         where Left<&'a Self>: Homotopy<X, S>
+    {
+        Left(self)
+    }
+
+    /// Gets the left side.
+    fn into_left<S>(self) -> Left<Self>
+        where Left<Self>: Homotopy<X, S>
     {
         Left(self)
     }
@@ -52,9 +66,23 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Right(self)
     }
 
+    /// Gets the right side.
+    fn into_right<S>(self) -> Right<Self>
+        where Right<Self>: Homotopy<X, S>
+    {
+        Right(self)
+    }
+
     /// Gets the top side.
     fn top<'a, S>(&'a self) -> Top<&'a Self>
         where Top<&'a Self>: Homotopy<X, S>
+    {
+        Top(self)
+    }
+
+    /// Gets the top side.
+    fn into_top<S>(self) -> Top<Self>
+        where Top<Self>: Homotopy<X, S>
     {
         Top(self)
     }
@@ -66,6 +94,13 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Bottom(self)
     }
 
+    /// Gets the bottom side.
+    fn into_bottom<S>(self) -> Bottom<Self>
+        where Bottom<Self>: Homotopy<X, S>
+    {
+        Bottom(self)
+    }
+
     /// Gets the front side.
     fn front<'a, S>(&'a self) -> Front<&'a Self>
         where Front<&'a Self>: Homotopy<X, S>
@@ -73,9 +108,23 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Front(self)
     }
 
+    /// Gets the front side.
+    fn into_front<S>(self) -> Front<Self>
+        where Front<Self>: Homotopy<X, S>
+    {
+        Front(self)
+    }
+
     /// Gets the back side.
     fn back<'a, S>(&'a self) -> Back<&'a Self>
         where Back<&'a Self>: Homotopy<X, S>
+    {
+        Back(self)
+    }
+
+    /// Gets the back side.
+    fn into_back<S>(self) -> Back<Self>
+        where Back<Self>: Homotopy<X, S>
     {
         Back(self)
     }
@@ -89,11 +138,29 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Past(self)
     }
 
+    /// Gets the past side.
+    ///
+    /// This is for 4D homotopy maps.
+    fn into_past<S>(self) -> Past<Self>
+        where Past<Self>: Homotopy<X, S>
+    {
+        Past(self)
+    }
+
     /// Gets the future side.
     ///
     /// This is for 4D homotopy maps.
     fn future<'a, S>(&'a self) -> Future<&'a Self>
         where Future<&'a Self>: Homotopy<X, S>
+    {
+        Future(self)
+    }
+
+    /// Gets the future side.
+    ///
+    /// This is for 4D homotopy maps.
+    fn into_future<S>(self) -> Future<Self>
+        where Future<Self>: Homotopy<X, S>
     {
         Future(self)
     }
@@ -105,9 +172,23 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         LeftRight(self, s)
     }
 
+    /// Gets a left-right intersection, controlled by `s`.
+    fn into_left_right<S>(self, s: f64) -> LeftRight<Self>
+        where LeftRight<Self>: Homotopy<X, S>
+    {
+        LeftRight(self, s)
+    }
+
     /// Gets a top-bottom intersection, controlled by `s`.
     fn top_bottom<'a, S>(&'a self, s: f64) -> TopBottom<&'a Self>
         where TopBottom<&'a Self>: Homotopy<X, S>
+    {
+        TopBottom(self, s)
+    }
+
+    /// Gets a top-bottom intersection, controlled by `s`.
+    fn into_top_bottom<S>(self, s: f64) -> TopBottom<Self>
+        where TopBottom<Self>: Homotopy<X, S>
     {
         TopBottom(self, s)
     }
@@ -119,9 +200,23 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         FrontBack(self, s)
     }
 
+    /// Gets a front-back intersection, controlled by `s`.
+    fn into_front_back<S>(self, s: f64) -> FrontBack<Self>
+        where FrontBack<Self>: Homotopy<X, S>
+    {
+        FrontBack(self, s)
+    }
+
     /// Gets a past-future intersection, controlled by `s`.
     fn past_future<'a, S>(&'a self, s: f64) -> PastFuture<&'a Self>
         where PastFuture<&'a Self>: Homotopy<X, S>
+    {
+        PastFuture(self, s)
+    }
+
+    /// Gets a past-future intersection, controlled by `s`.
+    fn into_past_future<S>(self, s: f64) -> PastFuture<Self>
+        where PastFuture<Self>: Homotopy<X, S>
     {
         PastFuture(self, s)
     }
@@ -133,6 +228,13 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         AsVec(self)
     }
 
+    /// Gets a converter to and from vectors.
+    fn into_as_vec<S, VX>(self) -> AsVec<Self>
+        where AsVec<Self>: Homotopy<VX, S>
+    {
+        AsVec(self)
+    }
+
     /// Maps output from one to another.
     fn map<'a, F: Fn(Self::Y) -> Y2, Y2>(&'a self, f: F) -> Map<&'a Self, F, Self::Y, Y2>
         where Map<&'a Self, F, Self::Y, Y2>: Homotopy<X, Scalar>
@@ -140,9 +242,23 @@ pub trait Homotopy<X, Scalar=f64>: Sized {
         Map::new(self, f)
     }
 
+    /// Maps output from one to another.
+    fn into_map<F: Fn(Self::Y) -> Y2, Y2>(self, f: F) -> Map<Self, F, Self::Y, Y2>
+        where Map<Self, F, Self::Y, Y2>: Homotopy<X, Scalar>
+    {
+        Map::new(self, f)
+    }
+
     /// Maps output from one to another, into a N+1 homotopy.
     fn smap<'a, F: Fn(Self::Y, f64) -> Y2, Y2>(&'a self, f: F)
     -> SMap<&'a Self, F, Self::Y, Y2, f64>
+    {
+        SMap::new(self, f)
+    }
+
+    /// Maps output from one to another, into a N+1 homotopy.
+    fn into_smap<F: Fn(Self::Y, f64) -> Y2, Y2>(self, f: F)
+    -> SMap<Self, F, Self::Y, Y2, f64>
     {
         SMap::new(self, f)
     }
@@ -845,6 +961,20 @@ impl Homotopy<[f64; 4]> for Translate<[f64; 4]> {
             x[3] + s * self.0[3],
         ]
     }
+}
+
+/// Create a sweep from two circles.
+///
+/// This is constructed by taking the diagonal of the square product of two circles.
+/// It can be thought of as making the circles rotate together, controlled by a single parameter.
+///
+/// Then, a SMap adds a new dimension that interpolates along the sweep,
+/// making it possible to control both the rotation and position between the two circles.
+pub fn sweep(a: Circle<f64>, b: Circle<f64>) -> impl Homotopy<((), ()), [f64; 2], Y = [f64; 2]> {
+    Square::new(a, b).into_diagonal().into_smap(|(a, b), s| [
+            a[0] + (b[0] - a[0]) * s,
+            a[1] + (b[1] - a[1]) * s,
+        ])
 }
 
 #[cfg(test)]
