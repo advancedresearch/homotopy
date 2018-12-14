@@ -2,8 +2,14 @@
 name = "advancedresearch-homotopy"
 version = "0.1.0"
 authors = ["Sven Nilsen <bvssvni@gmail.com>"]
+exclude = ["exports/*"]
 
 [lib]
 name = "homotopy"
 
 [dependencies]
+
+[dev-dependencies]
+underscore_args = "0.1.2"
+vecmath = "0.3.1"
+image = "0.20.1"
